@@ -518,8 +518,9 @@ func TestCollectGeminiSSEObserved_SeesTerminalChunkEvenWhenAggregateDropsIt(t *t
 		}
 	}
 	require.True(t, hit)
-	// 聚合结果沿用"最后一个带 parts 的块"，本身不携带末块的 finishReason；检测必须逐事件进行。
+	// 聚合结果以"最后一个带 parts 的块"为基础，但带上末块的 finishReason，
+	// 让客户端看到真实的结束原因；信号检测仍逐事件进行，不依赖聚合结果。
 	aggregated, err := json.Marshal(collected)
 	require.NoError(t, err)
-	require.NotContains(t, string(aggregated), "PROHIBITED_CONTENT")
+	require.Contains(t, string(aggregated), "PROHIBITED_CONTENT")
 }
