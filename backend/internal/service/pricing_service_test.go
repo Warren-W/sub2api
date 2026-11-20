@@ -621,6 +621,21 @@ func TestBillingService_Gemini36FlashThinkingTierFallbacksAreBillable(t *testing
 	}
 }
 
+func TestPricingService_GPTOSS120BDoesNotFallBackToGPT54(t *testing.T) {
+	svc := &PricingService{pricingData: map[string]*LiteLLMModelPricing{
+		"gpt-5.4": openAIGPT54FallbackPricing,
+	}}
+	for _, model := range []string{"gpt-oss-120b", "gpt-oss-120b-medium", "models/gpt-oss-120b-medium"} {
+		t.Run(model, func(t *testing.T) {
+			require.Same(t, openAIGPTOSS120BFallbackPricing, svc.GetModelPricing(model))
+		})
+	}
+
+	remote := &LiteLLMModelPricing{InputCostPerToken: 0.1e-6, OutputCostPerToken: 0.5e-6}
+	svc.pricingData["gpt-oss-120b"] = remote
+	require.Same(t, remote, svc.GetModelPricing("gpt-oss-120b-medium"))
+}
+
 func TestBillingService_Gemini35FlashTierIDsAreBillable(t *testing.T) {
 	data, err := os.ReadFile(filepath.Join("..", "..", "resources", "model-pricing", "model_prices_and_context_window.json"))
 	require.NoError(t, err)
