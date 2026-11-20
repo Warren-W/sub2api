@@ -172,10 +172,18 @@ type GeminiUsageMetadata struct {
 	PromptTokenCount        int                 `json:"promptTokenCount,omitempty"`
 	CandidatesTokenCount    int                 `json:"candidatesTokenCount,omitempty"`
 	CachedContentTokenCount int                 `json:"cachedContentTokenCount,omitempty"`
+	ToolUsePromptTokenCount int                 `json:"toolUsePromptTokenCount,omitempty"` // 内置工具（如搜索）结果，按输入计费
 	TotalTokenCount         int                 `json:"totalTokenCount,omitempty"`
 	ThoughtsTokenCount      int                 `json:"thoughtsTokenCount,omitempty"` // thinking tokens（按输出价格计费）
 	CandidatesTokensDetails []GeminiTokenDetail `json:"candidatesTokensDetails,omitempty"`
 	PromptTokensDetails     []GeminiTokenDetail `json:"promptTokensDetails,omitempty"`
+}
+
+// UncachedInputTokens 返回按输入价计费的 token 数：promptTokenCount 加上内置工具
+// 结果的 toolUsePromptTokenCount，再减去已计入缓存读的 cachedContentTokenCount。
+// prompt 被拦截时上游可能只报 cachedContentTokenCount，差值下限为 0。
+func (m *GeminiUsageMetadata) UncachedInputTokens() int {
+	return max(m.PromptTokenCount+m.ToolUsePromptTokenCount-m.CachedContentTokenCount, 0)
 }
 
 // ImageOutputTokens 从 CandidatesTokensDetails 中提取 IMAGE 模态的 token 数

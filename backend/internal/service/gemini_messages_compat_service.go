@@ -3166,6 +3166,7 @@ func extractGeminiUsage(data []byte) *ClaudeUsage {
 		return nil
 	}
 	prompt := int(usage.Get("promptTokenCount").Int())
+	toolUsePrompt := int(usage.Get("toolUsePromptTokenCount").Int())
 	cand := int(usage.Get("candidatesTokenCount").Int())
 	cached := int(usage.Get("cachedContentTokenCount").Int())
 	thoughts := int(usage.Get("thoughtsTokenCount").Int())
@@ -3185,9 +3186,10 @@ func extractGeminiUsage(data []byte) *ClaudeUsage {
 
 	// 注意：Gemini 的 promptTokenCount 包含 cachedContentTokenCount，
 	// 但 Claude 的 input_tokens 不包含 cache_read_input_tokens，需要减去。
+	// 内置工具（如搜索）结果单独记在 toolUsePromptTokenCount，按输入计费。
 	// prompt 被拦截时上游可能只报 cachedContentTokenCount，差值下限为 0。
 	return &ClaudeUsage{
-		InputTokens:          max(prompt-cached, 0),
+		InputTokens:          max(prompt+toolUsePrompt-cached, 0),
 		OutputTokens:         cand + thoughts,
 		CacheReadInputTokens: cached,
 		ImageOutputTokens:    imageTokens,
