@@ -334,6 +334,40 @@ func (r *usageLogRepository) GetAccountWindowStats(ctx context.Context, accountI
 	return stats, nil
 }
 
+// GetAccountWindowStatsByModel returns one account's usage since startTime, split by the model
+// that was actually sent upstream (upstream_model, falling back to model). Antigravity uses it to
+// attribute cost to the quota group a model draws from.
+func (r *usageLogRepository) GetAccountWindowStatsByModel(ctx context.Context, accountID int64, startTime time.Time) (map[string]*usagestats.AccountStats, error) {
+	query := `
+		SELECT
+			COALESCE(NULLIF(btrim(upstream_model), ''), model) as effective_model,
+			COUNT(*) as requests,
+			COALESCE(SUM(input_tokens + output_tokens + cache_creation_tokens + cache_read_tokens), 0) as tokens,
+			COALESCE(SUM(COALESCE(account_stats_cost, total_cost) * COALESCE(account_rate_multiplier, 1)), 0) as cost,
+			COALESCE(SUM(total_cost), 0) as standard_cost,
+			COALESCE(SUM(actual_cost), 0) as user_cost
+		FROM usage_logs
+		WHERE account_id = $1 AND created_at >= $2
+		GROUP BY 1
+	`
+	rows, err := r.sql.QueryContext(ctx, query, accountID, startTime)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	result := make(map[string]*usagestats.AccountStats)
+	for rows.Next() {
+		var model string
+		stats := &usagestats.AccountStats{}
+		if err := rows.Scan(&model, &stats.Requests, &stats.Tokens, &stats.Cost, &stats.StandardCost, &stats.UserCost); err != nil {
+			return nil, err
+		}
+		result[model] = stats
+	}
+	return result, rows.Err()
+}
+
 // GetAccountWindowStatsBatch 批量获取同一窗口起点下多个账号的统计数据。
 // 返回 map[accountID]*AccountStats，未命中的账号会返回零值统计，便于上层直接复用。
 func (r *usageLogRepository) GetAccountWindowStatsBatch(ctx context.Context, accountIDs []int64, startTime time.Time) (map[int64]*usagestats.AccountStats, error) {

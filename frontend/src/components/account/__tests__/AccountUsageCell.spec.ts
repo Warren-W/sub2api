@@ -607,6 +607,46 @@ describe('AccountUsageCell', () => {
     expect(wrapper.text()).not.toContain('gemini3Flash')
   })
 
+  it('Antigravity quota group bars carry window cost and a projected full-window cost', async () => {
+    getUsage.mockResolvedValue({
+      antigravity_quota_groups: [
+        {
+          key: 'gemini',
+          name: 'Gemini Models',
+          windows: [
+            {
+              window: '5h',
+              utilization: 25,
+              resets_at: '2026-11-04T20:52:48Z',
+              window_stats: { requests: 4, tokens: 400, cost: 2, standard_cost: 2, user_cost: 2 }
+            },
+            { window: 'weekly', utilization: 0, resets_at: '2026-11-11T15:52:48Z' }
+          ]
+        }
+      ]
+    })
+
+    const wrapper = mount(AccountUsageCell, {
+      props: {
+        account: makeAccount({ id: 1005, platform: 'antigravity', type: 'oauth', extra: {} })
+      },
+      global: {
+        stubs: {
+          UsageProgressBar: {
+            props: ['label', 'windowStats', 'estimatedTotalCost'],
+            template: '<div class="usage-bar">{{ windowStats?.cost ?? \'-\' }}|{{ estimatedTotalCost ?? \'-\' }}</div>'
+          },
+          AccountQuotaInfo: true
+        }
+      }
+    })
+
+    await flushPromises()
+
+    // $2 at 25% projects to $8 for the full window; no stats or 0% gives no projection.
+    expect(wrapper.findAll('.usage-bar').map((bar) => bar.text())).toEqual(['2|8', '-|-'])
+  })
+
   it('Antigravity quota group bars keep fractional utilization and request precise percent', async () => {
     getUsage.mockResolvedValue({
       antigravity_quota_groups: [
