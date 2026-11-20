@@ -125,6 +125,7 @@ func (s *AntigravityGatewayService) ForwardAsResponses(
 		return nil, s.writeAntigravityCompatError(c, http.StatusBadRequest, "invalid_request_error", err.Error())
 	}
 	claudeRequest.Stream = request.Stream
+	applyResponsesTokenLimit(&request, claudeRequest)
 	claudeBody, err := json.Marshal(claudeRequest)
 	if err != nil {
 		return nil, fmt.Errorf("marshal anthropic request: %w", err)
@@ -206,6 +207,20 @@ func preserveChatCompletionTokenLimit(request *apicompat.ChatCompletionsRequest,
 	if limit != nil && *limit > 0 {
 		claudeRequest.MaxTokens = min(*limit, antigravityCompatMaxTokens)
 	}
+}
+
+// applyResponsesTokenLimit 设置 Responses 请求的输出上限：客户端没传 max_output_tokens
+// （Codex 就不传）时用 antigravityCompatMaxTokens，而不是转换层的默认 8192，
+// 免得长回答被截断成 incomplete；传了就封顶到 antigravityCompatMaxTokens。
+func applyResponsesTokenLimit(request *apicompat.ResponsesRequest, claudeRequest *apicompat.AnthropicRequest) {
+	if request == nil || claudeRequest == nil {
+		return
+	}
+	if request.MaxOutputTokens != nil && *request.MaxOutputTokens > 0 {
+		claudeRequest.MaxTokens = min(*request.MaxOutputTokens, antigravityCompatMaxTokens)
+		return
+	}
+	claudeRequest.MaxTokens = antigravityCompatMaxTokens
 }
 
 func (s *AntigravityGatewayService) forwardAntigravityCompat(
