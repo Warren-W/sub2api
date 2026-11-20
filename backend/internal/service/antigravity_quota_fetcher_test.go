@@ -673,7 +673,7 @@ func TestFetchQuota_QueriesForwardEndpoint(t *testing.T) {
 			require.NoError(t, err)
 			require.NotNil(t, res)
 			require.NotNil(t, res.UsageInfo)
-			require.Equal(t, tt.wantUtilization, res.UsageInfo.AntigravityQuota["gemini-3-flash"].Utilization)
+			require.InDelta(t, float64(tt.wantUtilization), res.UsageInfo.AntigravityQuota["gemini-3-flash"].Utilization, 0.001)
 			require.Len(t, res.UsageInfo.AntigravityQuotaGroups, 1)
 			require.InDelta(t, tt.wantGroupUtil, res.UsageInfo.AntigravityQuotaGroups[0].Windows[0].Utilization, 0.001)
 
