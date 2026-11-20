@@ -621,6 +621,42 @@ func TestBillingService_Gemini36FlashThinkingTierFallbacksAreBillable(t *testing
 	}
 }
 
+func TestBillingService_Gemini35FlashTierIDsAreBillable(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("..", "..", "resources", "model-pricing", "model_prices_and_context_window.json"))
+	require.NoError(t, err)
+	pricingSvc := &PricingService{}
+	pricingData, err := pricingSvc.parsePricingData(data)
+	require.NoError(t, err)
+	pricingSvc.pricingData = pricingData
+
+	services := map[string]*BillingService{
+		"bundled pricing": NewBillingService(&config.Config{}, pricingSvc),
+		"fallback":        NewBillingService(&config.Config{}, nil),
+	}
+	for name, svc := range services {
+		for _, model := range []string{
+			"gemini-3.5-flash",
+			"gemini-3.5-flash-high",
+			"gemini-3.5-flash-medium",
+			"gemini-3.5-flash-low",
+			"gemini-3.5-flash-extra-low",
+			"models/gemini-3.5-flash-high",
+		} {
+			t.Run(name+"/"+model, func(t *testing.T) {
+				pricing, err := svc.GetModelPricing(model)
+				require.NoError(t, err)
+				require.InDelta(t, 1.5e-6, pricing.InputPricePerToken, 1e-12)
+				require.InDelta(t, 9e-6, pricing.OutputPricePerToken, 1e-12)
+				require.InDelta(t, 0.15e-6, pricing.CacheReadPricePerToken, 1e-12)
+			})
+		}
+	}
+
+	// -lite 是另一个模型，不能套用 3.5 Flash 的价格。
+	_, err = NewBillingService(&config.Config{}, nil).GetModelPricing("gemini-3.5-flash-lite")
+	require.Error(t, err)
+}
+
 func TestPricingService_Gemini37FlashThinkingTiersUseBasePricing(t *testing.T) {
 	basePricing := &LiteLLMModelPricing{
 		InputCostPerToken:       0.75e-6,
