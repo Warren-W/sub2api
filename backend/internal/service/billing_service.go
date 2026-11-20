@@ -493,6 +493,16 @@ func (s *BillingService) initFallbackPricing() {
 		SupportsCacheBreakdown:     false,
 	}
 
+	// Gemini 3.5 Flash（与内置价格表一致：$1.50 input / $9 output / $0.15
+	// cached input per MTok）。Antigravity 用 -high/-low/-extra-low 等档位名，
+	// 远端价格不可用时也按基础模型计费，不会记成 $0。-lite 是另一个模型，不套用。
+	s.fallbackPrices["gemini-3.5-flash"] = &ModelPricing{
+		InputPricePerToken:     1.5e-6,
+		OutputPricePerToken:    9e-6,
+		CacheReadPricePerToken: 0.15e-6,
+		SupportsCacheBreakdown: false,
+	}
+
 	// Gemini 3.6 Flash (Google AI pricing: $0.75 input / $3.75 output /
 	// $0.075 cached input per MTok, promotional through 2026-12-31; official
 	// rates double to $1.50/$7.50/$0.15 from 2027-01-01). Antigravity's
@@ -1236,6 +1246,9 @@ func (s *BillingService) getFallbackPricing(model string) *ModelPricing {
 	}
 	if strings.Contains(modelLower, "gemini-3.1-pro") || strings.Contains(modelLower, "gemini-3-1-pro") {
 		return s.fallbackPrices["gemini-3.1-pro"]
+	}
+	if normalizeGeminiThinkingTierAlias(lastSegment(strings.TrimSpace(modelLower))) == "gemini-3.5-flash" {
+		return s.fallbackPrices["gemini-3.5-flash"]
 	}
 	if strings.Contains(modelLower, "gemini-3.6-flash") || strings.Contains(modelLower, "gemini-3-6-flash") {
 		return s.fallbackPrices["gemini-3.6-flash"]
