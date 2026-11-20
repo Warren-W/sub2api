@@ -49,6 +49,16 @@ var (
 		Mode:                    "image_generation",
 		SupportsPromptCaching:   true,
 	}
+	// gpt-oss-120b（Antigravity 以 gpt-oss-120b-medium 提供）：价格表里没有，
+	// 旧逻辑会一路回退到默认测试模型、按 GPT-5.4 的价计费。按 Vertex AI MaaS 的
+	// 公开价 $0.15 input / $0.60 output per MTok；没有缓存折扣，缓存读按输入价。
+	openAIGPTOSS120BFallbackPricing = &LiteLLMModelPricing{
+		InputCostPerToken:       1.5e-07,
+		OutputCostPerToken:      6e-07,
+		CacheReadInputTokenCost: 1.5e-07,
+		LiteLLMProvider:         "openai",
+		Mode:                    "chat",
+	}
 	openAIGPT54FallbackPricing = &LiteLLMModelPricing{
 		InputCostPerToken:       2.5e-06, // $2.5 per MTok
 		OutputCostPerToken:      1.5e-05, // $15 per MTok
@@ -1702,6 +1712,13 @@ func (s *PricingService) matchOpenAIModel(model string) *LiteLLMModelPricing {
 			return openAIGPT6SolFallbackPricing
 		}
 		return openAIGPT6LunaFallbackPricing
+	}
+
+	if strings.HasPrefix(model, "gpt-oss-120b") {
+		if pricing, ok := s.pricingData["gpt-oss-120b"]; ok {
+			return pricing
+		}
+		return openAIGPTOSS120BFallbackPricing
 	}
 
 	// 尝试的回退变体
