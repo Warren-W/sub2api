@@ -34,6 +34,7 @@ const localizedMessages: Record<'en' | 'zh', Record<string, string>> = {
 
 const messages: Record<string, string> = {
   'usage.outputTps': 'Output TPS',
+  'usage.cacheHitRate': 'Cache hit rate',
   'admin.usage.userDeletedBadge': 'Deleted',
   'usage.costDetails': 'Cost Breakdown',
   'admin.usage.inputCost': 'Input Cost',
@@ -177,6 +178,20 @@ describe('admin UsageTable tooltip', () => {
     })
     expect(wrapper.findAll('[data-testid="output-tps"]').map(cell => cell.text())).toEqual(['50.0 tok/s', '—', '—'])
     expect(wrapper.text()).toContain('Output TPS')
+  })
+
+  it('shows cache hit rate in the latency cell', () => {
+    const row = { ...baseImageRow, image_count: 0, billing_mode: 'token', input_tokens: 300, cache_read_tokens: 600, cache_creation_tokens: 100 }
+    const wrapper = mount(UsageTable, {
+      props: {
+        data: [row, { ...row, request_id: 'no-usage', input_tokens: 0, cache_read_tokens: 0, cache_creation_tokens: 0 }],
+        loading: false,
+        columns: [{ key: 'latency', label: 'Latency' }],
+      },
+      global: { stubs: { DataTable: DataTableStub, EmptyState: true, Icon: true, Teleport: true } },
+    })
+    expect(wrapper.findAll('[data-testid="cache-hit-rate"]').map(cell => cell.text())).toEqual(['60.0%', '—'])
+    expect(wrapper.text()).toContain('Cache hit rate')
   })
 
   beforeEach(() => {
