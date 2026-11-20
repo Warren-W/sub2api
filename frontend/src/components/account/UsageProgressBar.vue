@@ -132,7 +132,7 @@ const labelClass = computed(() => {
 const labelSizeClass = computed(() =>
   props.labelWidth === 'auto'
     ? 'max-w-[72px] shrink-0 truncate rounded px-1 text-left text-[10px] font-medium'
-    : 'min-w-[32px] shrink-0 whitespace-nowrap rounded px-1 text-center text-[10px] font-medium'
+    : 'w-[32px] shrink-0 rounded px-1 text-center text-[10px] font-medium'
 )
 
 // Progress bar color based on utilization

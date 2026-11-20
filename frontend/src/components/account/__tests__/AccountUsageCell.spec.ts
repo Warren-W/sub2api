@@ -113,6 +113,21 @@ const cnUsageCellStubs = {
 }
 
 describe('AccountUsageCell', () => {
+  it('shows small nonzero Antigravity quota usage', async () => {
+    getUsage.mockResolvedValue({
+      antigravity_quota: {
+        'claude-sonnet-4-5': { utilization: 0.021136, reset_time: '2026-10-21T01:00:00Z' }
+      }
+    })
+    const wrapper = mount(AccountUsageCell, {
+      props: { account: makeAccount({ id: 6401 }) },
+      global: { stubs: { AccountQuotaInfo: true } }
+    })
+    await flushPromises()
+    expect(wrapper.text()).toContain('0.02%')
+    wrapper.unmount()
+  })
+
   it.each([
     ['anthropic', 'oauth'], ['anthropic', 'setup-token'], ['gemini', 'oauth'], ['gemini', 'apikey']
   ] as const)('refreshes %s %s snapshots without forcing upstream reads and reuses the new cache', async (platform, type) => {
@@ -173,20 +188,6 @@ describe('AccountUsageCell', () => {
       wrapper.unmount()
       vi.unstubAllGlobals()
     }
-
-  it('shows small nonzero Antigravity quota usage', async () => {
-    getUsage.mockResolvedValue({
-      antigravity_quota: {
-        'claude-sonnet-4-5': { utilization: 0.021136, reset_time: '2026-10-21T01:00:00Z' }
-      }
-    })
-    const wrapper = mount(AccountUsageCell, {
-      props: { account: makeAccount({ id: 6401 }) },
-      global: { stubs: { AccountQuotaInfo: true } }
-    })
-    await flushPromises()
-    expect(wrapper.text()).toContain('0.02%')
-    wrapper.unmount()
   })
 
   beforeEach(() => {
@@ -604,6 +605,38 @@ describe('AccountUsageCell', () => {
     ])
     // The per-model figure (one tighter window per model) is not shown next to the real windows.
     expect(wrapper.text()).not.toContain('gemini3Flash')
+  })
+
+  it('Antigravity quota group bars keep fractional utilization and request precise percent', async () => {
+    getUsage.mockResolvedValue({
+      antigravity_quota_groups: [
+        {
+          key: 'gemini',
+          name: 'Gemini Models',
+          windows: [{ window: '5h', utilization: 0.3, resets_at: '2026-11-04T20:52:48Z' }]
+        }
+      ]
+    })
+
+    const wrapper = mount(AccountUsageCell, {
+      props: {
+        account: makeAccount({ id: 1007, platform: 'antigravity', type: 'oauth', extra: {} })
+      },
+      global: {
+        stubs: {
+          UsageProgressBar: {
+            props: { label: String, utilization: Number, resetsAt: String, color: String, precisePercent: Boolean },
+            template: '<div class="usage-bar">{{ label }}|{{ utilization }}|{{ precisePercent }}</div>'
+          },
+          AccountQuotaInfo: true
+        }
+      }
+    })
+
+    await flushPromises()
+
+    // An Ultra plan's small usage (0.3%) must not round down to 0%.
+    expect(wrapper.find('.usage-bar').text()).toBe('admin.accounts.usageWindow.antigravityGemini5h|0.3|true')
   })
 
   it('Antigravity query button refreshes past the server cache', async () => {
