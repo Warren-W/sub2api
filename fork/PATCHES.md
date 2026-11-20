@@ -45,6 +45,8 @@
 | 粘性会话切号后输入按缓存价计费 | 上游有意设计（72b08f9cc），切号导致的缓存失效不让用户买单 |
 | Argon/Carbon 优惠价到期 | 远端价格表优先，改代码无效；到期前后留意价格表或设渠道价 |
 | 输出上限按模型读取价格表 | 决定保持写死 64000 |
+| Issue #8926：删掉的 Antigravity 映射仍出现在导出的 codex-models.json | `ensureAntigravityDefaultPassthroughs` 有意把默认直通模型补回映射，且同一映射用于路由；只影响导出的模型目录 |
+| PR #8730 是否作用于 Antigravity | 只改 Gemini 平台（`gemini_*` 服务），对 Antigravity 无影响也无副作用 |
 
 ## 合并官方前的检查流程
 
