@@ -107,3 +107,19 @@ func BenchmarkGenerateRandomID(b *testing.B) {
 		_ = generateRandomID()
 	}
 }
+
+func TestTransformGeminiToClaudeBillsToolUsePromptTokensAsInput(t *testing.T) {
+	body := []byte(`{"candidates":[{"content":{"parts":[{"text":"ok"}]},"finishReason":"STOP"}],"usageMetadata":{"promptTokenCount":100,"toolUsePromptTokenCount":30,"cachedContentTokenCount":40,"candidatesTokenCount":5}}`)
+
+	_, usage, err := TransformGeminiToClaude(body, "gemini-3.1-pro-high")
+
+	require.NoError(t, err)
+	require.Equal(t, 90, usage.InputTokens)
+	require.Equal(t, 40, usage.CacheReadInputTokens)
+	require.Equal(t, 5, usage.OutputTokens)
+}
+
+func TestGeminiUsageMetadataUncachedInputTokensFloorsAtZero(t *testing.T) {
+	m := &GeminiUsageMetadata{CachedContentTokenCount: 10}
+	require.Equal(t, 0, m.UncachedInputTokens())
+}
