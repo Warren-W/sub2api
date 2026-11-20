@@ -83,3 +83,15 @@ export const formatUsageOutputRate = (row: Pick<UsageLog,
   }
   return `${(outputTokens * 1000 / durationMs).toFixed(1)} tok/s`
 }
+
+// 缓存命中率 = 缓存读取 ÷ 全部提示 Token。各平台入库的 input_tokens 都已扣除缓存读取和缓存写入，
+// 所以分母是三者相加。图片输入另计，不在分母里。没有提示 Token（用量缺失）时不显示。
+export const formatUsageCacheHitRate = (row: Pick<UsageLog,
+  'input_tokens' | 'cache_read_tokens' | 'cache_creation_tokens'
+>): string => {
+  const parts = [row.input_tokens, row.cache_read_tokens, row.cache_creation_tokens]
+    .map((v) => (Number.isFinite(v) && v > 0 ? v : 0))
+  const total = parts[0] + parts[1] + parts[2]
+  if (total <= 0) return '—'
+  return `${(parts[1] * 100 / total).toFixed(1)}%`
+}

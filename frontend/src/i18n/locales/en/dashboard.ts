@@ -397,6 +397,7 @@ export default {
     latencyDuration: 'Total',
     outputTps: 'Output TPS',
     outputTpsHint: 'Output tokens divided by total duration, including first-token wait, in tok/s. Output tokens may include reasoning tokens.',
+    cacheHitRateHint: 'Cache reads ÷ (uncached input + cache reads + cache writes). Image input excluded.',
     time: 'Time',
     ws: 'WS',
     stream: 'Stream',
