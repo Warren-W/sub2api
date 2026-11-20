@@ -988,6 +988,7 @@ type antigravitySmartRetryInfo struct {
 	RetryDelay               time.Duration // 重试延迟时间
 	ModelName                string        // 限流的模型名称（如 "claude-sonnet-4-5"）
 	IsModelCapacityExhausted bool          // 是否为模型容量不足（MODEL_CAPACITY_EXHAUSTED）
+	IsQuotaExhausted         bool          // 是否为账号额度耗尽（QUOTA_EXHAUSTED），按账号级限流处理
 }
 
 // parseAntigravitySmartRetryInfo 解析 Google RPC RetryInfo 和 ErrorInfo 信息
@@ -1034,7 +1035,9 @@ func parseAntigravitySmartRetryInfo(body []byte) *antigravitySmartRetryInfo {
 
 	var retryDelay time.Duration
 	var modelName string
-	var hasRateLimitExceeded bool      // 429 需要此 reason
+	var hasRateLimitExceeded bool      // 429 需要此 reason（或 QUOTA_EXHAUSTED）
+	var hasQuotaExhausted bool         // 429 额度耗尽：同样是账号级，应立即切号
+	var quotaResetDelay time.Duration  // QUOTA_EXHAUSTED 的 metadata.quotaResetDelay
 	var hasModelCapacityExhausted bool // 503 需要此 reason
 
 	for _, d := range details {
@@ -1051,6 +1054,11 @@ func parseAntigravitySmartRetryInfo(body []byte) *antigravitySmartRetryInfo {
 				if model, ok := meta["model"].(string); ok {
 					modelName = normalizeAntigravityModelName(model)
 				}
+				if delay, ok := meta["quotaResetDelay"].(string); ok && delay != "" {
+					if dur, err := time.ParseDuration(delay); err == nil && dur > 0 {
+						quotaResetDelay = dur
+					}
+				}
 			}
 			// 检查 reason
 			if reason, ok := dm["reason"].(string); ok {
@@ -1059,6 +1067,9 @@ func parseAntigravitySmartRetryInfo(body []byte) *antigravitySmartRetryInfo {
 				}
 				if reason == googleRPCReasonRateLimitExceeded {
 					hasRateLimitExceeded = true
+				}
+				if reason == googleRPCReasonQuotaExhausted {
+					hasQuotaExhausted = true
 				}
 			}
 			continue
@@ -1084,7 +1095,9 @@ func parseAntigravitySmartRetryInfo(body []byte) *antigravitySmartRetryInfo {
 	// 验证条件
 	// 情况1: RESOURCE_EXHAUSTED 需要有 RATE_LIMIT_EXCEEDED reason
 	// 情况2: UNAVAILABLE 需要有 MODEL_CAPACITY_EXHAUSTED reason
-	if isResourceExhausted && !hasRateLimitExceeded {
+	// QUOTA_EXHAUSTED（5 小时 / 周额度耗尽）与 RATE_LIMIT_EXCEEDED 一样是账号级，
+	// 交给同一套"限流模型 + 清粘性会话 + 切号"逻辑，不在同一账号上退避重试（#8978）。
+	if isResourceExhausted && !hasRateLimitExceeded && !hasQuotaExhausted {
 		return nil
 	}
 	if isUnavailable && !hasModelCapacityExhausted {
@@ -1096,6 +1109,10 @@ func parseAntigravitySmartRetryInfo(body []byte) *antigravitySmartRetryInfo {
 		return nil
 	}
 
+	// 额度耗尽时 RetryInfo 可能缺失，退回 metadata.quotaResetDelay
+	if retryDelay <= 0 && hasQuotaExhausted {
+		retryDelay = quotaResetDelay
+	}
 	// 如果上游未提供 retryDelay，使用默认限流时间
 	if retryDelay <= 0 {
 		retryDelay = antigravityDefaultRateLimitDuration
@@ -1105,6 +1122,7 @@ func parseAntigravitySmartRetryInfo(body []byte) *antigravitySmartRetryInfo {
 		RetryDelay:               retryDelay,
 		ModelName:                modelName,
 		IsModelCapacityExhausted: hasModelCapacityExhausted,
+		IsQuotaExhausted:         hasQuotaExhausted && !hasRateLimitExceeded,
 	}
 }
 
