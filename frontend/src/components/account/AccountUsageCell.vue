@@ -325,6 +325,7 @@
           :utilization="bar.utilization"
           :resets-at="bar.resetsAt"
           :color="bar.color"
+          precise-percent
         />
 
         <div v-if="aiCreditsDisplay" class="mt-1 text-[10px] text-gray-500 dark:text-gray-400">
@@ -994,7 +995,7 @@ const antigravityQuotaGroupBars = computed(() => {
         key: `${group.key}-${window.window}`,
         label: t(labelKey),
         title: group.name,
-        utilization: Math.round(window.utilization ?? 0),
+        utilization: window.utilization ?? 0,
         resetsAt: window.resets_at ?? null,
         color
       })
