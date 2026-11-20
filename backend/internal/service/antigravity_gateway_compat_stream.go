@@ -452,6 +452,9 @@ func (s *AntigravityGatewayService) handleAntigravityCompatStreamWithTiming(
 				return session.finish()
 			}
 			if event.err != nil {
+				if errors.Is(event.err, errAntigravityFirstByteTimeout) {
+					return nil, newAntigravityFirstByteTimeoutFailoverError(resp, prefix)
+				}
 				return s.handleAntigravityCompatReadError(c, session, event.err, maxLineSize, prefix)
 			}
 			resetAntigravityCompatTimer(timeoutTimer, timeout)
