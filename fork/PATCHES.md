@@ -2,7 +2,7 @@
 
 本分支 = 官方 `Wei-Shaw/sub2api` main + 下表的修复。每个修复是一个独立提交，官方合并或修好以后，变基时把对应提交丢掉。
 
-- 基线：`origin/main` 62cebadf5（2026-11-20）
+- 基线：`origin/main` 328db26f4（2026-11-20，官方 v0.2.24）
 - 远程：`origin` = 官方，`fork` = `Warren-W/sub2api`
 - 不含数据库迁移，可以随时退回官方镜像 `weishaw/sub2api:<同版本>`
 
