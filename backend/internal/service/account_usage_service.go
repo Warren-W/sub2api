@@ -130,8 +130,10 @@ type UsageCache struct {
 	antigravityCache  sync.Map           // accountID -> *antigravityUsageCache
 	apiFlight         singleflight.Group // 防止同一账号的并发请求击穿缓存（Anthropic）
 	antigravityFlight singleflight.Group // 防止同一 Antigravity 账号的并发请求击穿缓存
-	openAIProbeCache  sync.Map           // accountID -> time.Time
-	grokProbeCache    sync.Map           // accountID -> last billing probe attempt
+	// antigravityModelStatsCache: antigravityModelStatsCacheKey -> *antigravityModelStatsCache
+	antigravityModelStatsCache sync.Map
+	openAIProbeCache           sync.Map // accountID -> time.Time
+	grokProbeCache             sync.Map // accountID -> last billing probe attempt
 }
 
 // NewUsageCache 创建 UsageCache 实例
@@ -176,6 +178,8 @@ type AntigravityQuotaWindow struct {
 	Window      string     `json:"window"`
 	Utilization float64    `json:"utilization"` // used percentage, 0-100
 	ResetsAt    *time.Time `json:"resets_at"`
+	// WindowStats is this account's local usage of the group's models since the window started.
+	WindowStats *WindowStats `json:"window_stats,omitempty"`
 }
 
 // AntigravityModelQuota Antigravity 单个模型的配额信息
@@ -419,6 +423,7 @@ func (s *AccountUsageService) getUsageForAccount(ctx context.Context, account *A
 		usage, err := s.getAntigravityUsage(ctx, account, forceProbe)
 		if err == nil {
 			s.tryClearRecoverableAccountError(ctx, account)
+			usage = s.withAntigravityQuotaWindowStats(ctx, account, usage)
 		}
 		return usage, err
 	}

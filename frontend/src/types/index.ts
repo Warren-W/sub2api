@@ -1450,6 +1450,7 @@ export interface AntigravityQuotaWindow {
   window: string // '5h' or 'weekly'
   utilization: number // 0-100
   resets_at: string | null
+  window_stats?: WindowStats | null // 本账号该分组模型在窗口内的本地用量
 }
 
 export interface AntigravityQuotaGroup {

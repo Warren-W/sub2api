@@ -324,6 +324,8 @@
           :title="bar.title"
           :utilization="bar.utilization"
           :resets-at="bar.resetsAt"
+          :window-stats="bar.windowStats"
+          :estimated-total-cost="bar.estimatedTotalCost"
           :color="bar.color"
           precise-percent
         />
@@ -980,6 +982,8 @@ const antigravityQuotaGroupBars = computed(() => {
     title: string
     utilization: number
     resetsAt: string | null
+    windowStats: WindowStats | null
+    estimatedTotalCost: number | null
     color: 'indigo' | 'emerald' | 'purple' | 'amber'
   }> = []
   for (const group of groups) {
@@ -997,6 +1001,13 @@ const antigravityQuotaGroupBars = computed(() => {
         title: group.name,
         utilization: window.utilization ?? 0,
         resetsAt: window.resets_at ?? null,
+        windowStats: window.window_stats ?? null,
+        estimatedTotalCost: estimateWindowTotalCost({
+          utilization: window.utilization,
+          resets_at: window.resets_at,
+          remaining_seconds: 0,
+          window_stats: window.window_stats
+        }),
         color
       })
     }
