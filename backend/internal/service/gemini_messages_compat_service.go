@@ -2677,14 +2677,42 @@ func collectGeminiSSEObserved(cfg *config.Config, body io.Reader, isOAuth bool, 
 	return mergeCollectedTextParts(pickGeminiCollectResult(last, lastWithParts), collectedTextParts), usage, stats, nil
 }
 
+// pickGeminiCollectResult 选出非流式聚合的基础响应：优先最后一个带 parts 的分片。
+// Gemini 流的最后一个分片常常只有 finishReason 和完整 usageMetadata、没有 parts，
+// 此时把它的 usageMetadata 和 finishReason 带到选中的分片上，避免输出 token 少计、
+// 截断原因（如 MAX_TOKENS）丢失。不修改传入的分片。
 func pickGeminiCollectResult(last map[string]any, lastWithParts map[string]any) map[string]any {
-	if lastWithParts != nil {
+	if lastWithParts == nil {
+		if last != nil {
+			return last
+		}
+		return map[string]any{}
+	}
+	if last == nil {
 		return lastWithParts
 	}
-	if last != nil {
-		return last
+
+	result := make(map[string]any, len(lastWithParts)+1)
+	for k, v := range lastWithParts {
+		result[k] = v
 	}
-	return map[string]any{}
+	if usage, ok := last["usageMetadata"]; ok && usage != nil {
+		result["usageMetadata"] = usage
+	}
+	if finishReason := extractGeminiFinishReason(last); finishReason != "" {
+		if candidates, ok := result["candidates"].([]any); ok && len(candidates) > 0 {
+			if candidate, ok := candidates[0].(map[string]any); ok {
+				copiedCandidate := make(map[string]any, len(candidate)+1)
+				for k, v := range candidate {
+					copiedCandidate[k] = v
+				}
+				copiedCandidate["finishReason"] = finishReason
+				copiedCandidates := append([]any{copiedCandidate}, candidates[1:]...)
+				result["candidates"] = copiedCandidates
+			}
+		}
+	}
+	return result
 }
 
 // mergeCollectedTextParts merges all collected text chunks into the final response.
