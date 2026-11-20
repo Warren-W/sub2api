@@ -744,6 +744,50 @@ func TestPreserveChatCompletionTokenLimitIgnoresAbsentAndNonPositiveValues(t *te
 	}
 }
 
+func TestAntigravityCompatResponsesTokenLimit(t *testing.T) {
+	tests := []struct {
+		name string
+		body string
+		want int64
+	}{
+		{
+			name: "absent uses compat max instead of 8192",
+			body: `{"model":"gemini-3.1-pro-high","input":"ok"}`,
+			want: antigravityCompatMaxTokens,
+		},
+		{
+			name: "explicit value is kept",
+			body: `{"model":"gemini-3.1-pro-high","input":"ok","max_output_tokens":1234}`,
+			want: 1234,
+		},
+		{
+			name: "oversized value is capped",
+			body: `{"model":"gemini-3.1-pro-high","input":"ok","max_output_tokens":200000}`,
+			want: antigravityCompatMaxTokens,
+		},
+		{
+			name: "non-positive value falls back to compat max",
+			body: `{"model":"gemini-3.1-pro-high","input":"ok","max_output_tokens":0}`,
+			want: antigravityCompatMaxTokens,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			upstream := &queuedHTTPUpstreamStub{responses: []*http.Response{antigravityCompatSuccessResponse()}}
+			svc := newAntigravityCompatService(config.GatewayConfig{MaxLineSize: defaultMaxLineSize}, upstream)
+			body := []byte(tt.body)
+			c, _ := newAntigravityCompatContext(http.MethodPost, "/v1/responses", body)
+
+			_, err := svc.ForwardAsResponses(context.Background(), c, newAntigravityCompatAccount(AccountTypeOAuth), body, nil)
+
+			require.NoError(t, err)
+			require.Len(t, upstream.requestBodies, 1)
+			require.Equal(t, tt.want, gjson.GetBytes(upstream.requestBodies[0], "request.generationConfig.maxOutputTokens").Int())
+		})
+	}
+}
+
 func antigravityCompatIntPtr(v int) *int { return &v }
 
 func TestAntigravityCompatRoutesByMappedModelFamily(t *testing.T) {
