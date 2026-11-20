@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { durationSeverity, firstTokenSeverity, formatUsageOutputRate } from '../latencyHealth'
+import { durationSeverity, firstTokenSeverity, formatUsageCacheHitRate, formatUsageOutputRate } from '../latencyHealth'
 
 describe('latencyHealth', () => {
   it('classifies first-token latency at 10s/30s/60s boundaries', () => {
@@ -59,5 +59,20 @@ describe('formatUsageOutputRate', () => {
     { request_type: 'unknown' as const },
   ])('omits non-text or unknown request rates: %j', (fields) => {
     expect(formatUsageOutputRate({ ...row, ...fields })).toBe('—')
+  })
+})
+
+describe('formatUsageCacheHitRate', () => {
+  it('divides cache reads by all prompt tokens', () => {
+    expect(formatUsageCacheHitRate({ input_tokens: 300, cache_read_tokens: 600, cache_creation_tokens: 100 })).toBe('60.0%')
+  })
+
+  it('shows 0% when prompt tokens exist but nothing was cached', () => {
+    expect(formatUsageCacheHitRate({ input_tokens: 500, cache_read_tokens: 0, cache_creation_tokens: 0 })).toBe('0.0%')
+  })
+
+  it('does not invent a rate without prompt tokens', () => {
+    expect(formatUsageCacheHitRate({ input_tokens: 0, cache_read_tokens: 0, cache_creation_tokens: 0 })).toBe('—')
+    expect(formatUsageCacheHitRate({ input_tokens: NaN, cache_read_tokens: -1, cache_creation_tokens: 0 })).toBe('—')
   })
 })

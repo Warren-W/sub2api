@@ -402,6 +402,7 @@ export default {
     latencyDuration: '总耗时',
     outputTps: '输出 TPS',
     outputTpsHint: '输出 Token ÷ 总耗时（包含首字等待），单位 tok/s。输出 Token 可能包含推理 Token。',
+    cacheHitRateHint: '缓存读取 ÷（未缓存输入 + 缓存读取 + 缓存写入）。不含图片输入。',
     time: '时间',
     ws: 'WS',
     stream: '流式',
