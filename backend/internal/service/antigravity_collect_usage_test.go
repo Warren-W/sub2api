@@ -59,3 +59,12 @@ func TestCollectClaudeStreamResponseUsesFinalChunkUsage(t *testing.T) {
 	require.Equal(t, "max_tokens", gjson.GetBytes(body, "stop_reason").String())
 	require.Equal(t, "hello world", gjson.GetBytes(body, "content.#(type==\"text\").text").String())
 }
+
+func TestExtractGeminiUsageBillsToolUsePromptTokensAsInput(t *testing.T) {
+	usage := extractGeminiUsage([]byte(`{"usageMetadata":{"promptTokenCount":100,"toolUsePromptTokenCount":30,"cachedContentTokenCount":40,"candidatesTokenCount":5,"thoughtsTokenCount":2}}`))
+
+	require.NotNil(t, usage)
+	require.Equal(t, 90, usage.InputTokens)
+	require.Equal(t, 40, usage.CacheReadInputTokens)
+	require.Equal(t, 7, usage.OutputTokens)
+}

@@ -123,7 +123,7 @@ func (p *StreamingProcessor) ProcessLine(line string) []byte {
 	// prompt 被拦截时上游可能只报 cachedContentTokenCount，差值下限为 0。
 	if geminiResp.UsageMetadata != nil {
 		cached := geminiResp.UsageMetadata.CachedContentTokenCount
-		p.inputTokens = max(geminiResp.UsageMetadata.PromptTokenCount-cached, 0)
+		p.inputTokens = geminiResp.UsageMetadata.UncachedInputTokens()
 		p.outputTokens = geminiResp.UsageMetadata.CandidatesTokenCount + geminiResp.UsageMetadata.ThoughtsTokenCount
 		p.cacheReadTokens = cached
 		p.imageOutputTokens = geminiResp.UsageMetadata.ImageOutputTokens()
@@ -209,7 +209,7 @@ func (p *StreamingProcessor) emitMessageStart(v1Resp *V1InternalResponse) []byte
 	usage := ClaudeUsage{}
 	if v1Resp.Response.UsageMetadata != nil {
 		cached := v1Resp.Response.UsageMetadata.CachedContentTokenCount
-		usage.InputTokens = max(v1Resp.Response.UsageMetadata.PromptTokenCount-cached, 0)
+		usage.InputTokens = v1Resp.Response.UsageMetadata.UncachedInputTokens()
 		usage.OutputTokens = v1Resp.Response.UsageMetadata.CandidatesTokenCount + v1Resp.Response.UsageMetadata.ThoughtsTokenCount
 		usage.CacheReadInputTokens = cached
 		usage.ImageOutputTokens = v1Resp.Response.UsageMetadata.ImageOutputTokens()
